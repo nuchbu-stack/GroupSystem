@@ -13,15 +13,15 @@ service cloud.firestore {
     }
     
     function getUserEmail() {
-      return (request.auth != null && request.auth.token.email != null) ? request.auth.token.email : '';
+      return (request.auth != null && request.auth.token.email != null) ? request.auth.token.email.lower() : '';
     }
     
     function isInstructor() {
       return isSignedIn() && (
-        getUserEmail().matches('(?i)^nuch\\.bu@gmail\\.com$') ||
-        getUserEmail().matches('(?i)^nuchanart\\.s@bu\\.ac\\.th$') ||
-        getUserEmail().matches('(?i)^[a-z0-9._%+-]+@bu\\.ac\\.th$') || 
-        getUserEmail().matches('(?i)^[a-z0-9._%+-]+@[a-z0-9.-]+\\.bu\\.ac\\.th$')
+        getUserEmail() == 'nuch.bu@gmail.com' ||
+        getUserEmail() == 'nuchanart.s@bu.ac.th' ||
+        getUserEmail().matches('.*@bu\\.ac\\.th$') ||
+        getUserEmail().matches('.*\\.bu\\.ac\\.th$')
       );
     }
     
