@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function getUserEmail() {
+      return (request.auth != null && request.auth.token.email != null) ? request.auth.token.email : '';
+    }
+    
+    function isInstructor() {
+      return isSignedIn() && (
+        getUserEmail().matches('(?i)^nuch\\.bu@gmail\\.com$') ||
+        getUserEmail().matches('(?i)^nuchanart\\.s@bu\\.ac\\.th$') ||
+        getUserEmail().matches('(?i)^[a-z0-9._%+-]+@bu\\.ac\\.th$') || 
+        getUserEmail().matches('(?i)^[a-z0-9._%+-]+@[a-z0-9.-]+\\.bu\\.ac\\.th$')
+      );
+    }
+    
+    function isValidId(id) {
+       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn() && (
+        isInstructor() || 
+        (resource.data.studentRoster != null && getUserEmail() in resource.data.studentRoster)
+      );
+      
+      allow create: if isSignedIn() && isInstructor() && (
+        request.resource.data.instructorEmail == getUserEmail()
+      );
+      
+      allow update: if isSignedIn() && isInstructor() && (
+        resource.data.instructorEmail == getUserEmail() &&
+        request.resource.data.instructorEmail == resource.data.instructorEmail
+      );
+      
+      allow delete: if isSignedIn() && isInstructor() && (
+        resource.data.instructorEmail == getUserEmail()
+      );
+      
+      match /groups/{groupId} {
+        function getAssignment() {
+          return get(/databases/$(database)/documents/assignments/$(assignmentId));
+        }
+        
+        function isAssignmentInstructor() {
+          return getAssignment().data.instructorEmail == getUserEmail();
+        }
+        
+        function isAssignmentStudent() {
+          return getAssignment().data.studentRoster != null && getUserEmail() in getAssignment().data.studentRoster;
+        }
+        
+        allow read: if isSignedIn() && (
+          isInstructor() || isAssignmentStudent()
+        );
+        
+        allow create: if isSignedIn() && (
+          isInstructor() || isAssignmentStudent()
+        );
+        
+        allow update: if isSignedIn() && (
+          isInstructor() || isAssignmentStudent()
+        );
+        
+        allow delete: if isSignedIn() && (
+          isAssignmentInstructor()
+        );
+      }
+    }
+  }
+}

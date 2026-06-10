@@ -1,0 +1,9 @@
+{
+  "name": "ระบบจัดรายชื่อสำหรับงานกลุ่ม",
+  "description": "ระบบจัดกลุ่มงานและให้คะแนนตามรูบริก (Rubric) ทั้งแบบกลุ่มและรายบุคคล สำหรับอาจารย์และนักศึกษา มหาวิทยาลัยกรุงเทพ",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

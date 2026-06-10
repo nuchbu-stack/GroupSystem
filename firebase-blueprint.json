@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "Assignment": {
+      "title": "Assignment",
+      "description": "An assignment or group project created by an instructor.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "courseName": { "type": "string" },
+        "maxMembersPerGroup": { "type": "number" },
+        "minMembersPerGroup": { "type": "number" },
+        "instructorEmail": { "type": "string" },
+        "instructorName": { "type": "string" },
+        "studentRoster": { "type": "array" },
+        "rubrics": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "courseName", "maxMembersPerGroup", "instructorEmail", "studentRoster", "rubrics"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A student group registered for a specific assignment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "groupNumber": { "type": "number" },
+        "members": { "type": "array" },
+        "submissions": { "type": "array" },
+        "individualGrading": { "type": "object" },
+        "groupGrading": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["assignmentId", "groupName", "groupNumber", "members"]
+    }
+  },
+  "firestore": {
+    "/assignments/{assignmentId}": {
+      "schema": "Assignment",
+      "description": "Metadata of group assignments created by instructors"
+    },
+    "/assignments/{assignmentId}/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Student groups formed for a particular assignment"
+    }
+  }
+}
