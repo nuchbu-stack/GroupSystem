@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { auth, db, googleProvider, isUserInstructor, OperationType, handleFirestoreError, dbStatus, testConnection } from "./firebase";
+import { auth, db, googleProvider, isUserInstructor, OperationType, handleFirestoreError } from "./firebase";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
 import { 
   collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp 
@@ -19,23 +19,6 @@ import { motion, AnimatePresence } from "motion/react";
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [dbError, setDbError] = useState<string | null>(null);
-  const [retryingDb, setRetryingDb] = useState(false);
-  const [retryTrigger, setRetryTrigger] = useState(0);
-
-  useEffect(() => {
-    return dbStatus.onChange((err) => {
-      setDbError(err);
-    });
-  }, []);
-
-  const handleRetryDb = async () => {
-    setRetryingDb(true);
-    await testConnection();
-    setRetryTrigger((prev) => prev + 1);
-    setRetryingDb(false);
-  };
   
   // App context states
   const [isInstructor, setIsInstructor] = useState(false);
@@ -57,17 +40,10 @@ export default function App() {
 
   // Handle Google Login from App dashboard
   const handleGoogleLogin = async () => {
-    setLoginError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Popup login error: ", err);
-      const errStr = String(err);
-      if (err?.code === "auth/configuration-not-found" || errStr.includes("auth/configuration-not-found")) {
-        setLoginError("auth/configuration-not-found");
-      } else {
-        setLoginError(err?.message || errStr);
-      }
     }
   };
 
@@ -131,7 +107,7 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, [user, isInstructor, loading, retryTrigger]);
+  }, [user, isInstructor, loading]);
 
   // 3. Real-time Groups Subscription once an Assignment is Selected
   useEffect(() => {
@@ -167,7 +143,7 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, [selectedAssignment, retryTrigger]);
+  }, [selectedAssignment]);
 
   // Create Assignment
   const handleSaveAssignment = async (assignmentData: Omit<Assignment, "id" | "instructorEmail" | "instructorName" | "createdAt" | "updatedAt">) => {
@@ -506,158 +482,6 @@ export default function App() {
             </div>
           </div>
 
-          {loginError && (
-            <div className="w-full max-w-2xl bg-amber-50 border-2 border-amber-200 text-amber-900 rounded-2xl p-6 text-left mb-6 shadow-md">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-bold text-base text-amber-900 flex items-center gap-2">
-                    ⚠️ ขั้นตอนที่ต้องกำหนดค่าเพิ่มในระบบ Firebase Console
-                  </h3>
-                  
-                  <div className="mt-3 text-sm text-amber-800 space-y-4">
-                    <p>
-                      เนื่องจากคุณย้ายมาใช้โปรเจค Firebase ใหม่ชื่อ <strong className="underline font-bold text-amber-950">BangkokU (bangkoku-fb960)</strong> 
-                      อาการที่หน้าต่างป๊อปอัปแจ้งเตือนว่า <strong className="text-red-700">"The requested action is invalid"</strong> หรือข้อผิดพลาดอื่นๆ เกิดขึ้นจากการที่เรายังไม่ได้เปิดให้โดเมนของแอปพลิเคชันนี้และฟังก์ชันล็อกอินเข้าถึงระบบ Firebase ของคุณครับ
-                    </p>
-                    
-                    <p className="font-semibold text-amber-950 border-b border-amber-200 pb-1">🛠️ กรุณาทำตาม 2 ขั้นตอนด้านล่างนี้ใน Firebase Console เพื่อเปิดใช้บริการ:</p>
-                    
-                    {/* Step 1: Enable Google Sign-In */}
-                    <div className="space-y-1">
-                      <p className="font-bold text-amber-950">ขั้นตอนที่ 1: เปิดใช้งาน Google Sign-In</p>
-                      <ol className="list-decimal list-inside space-y-1 pl-2 text-xs text-amber-900">
-                        <li>
-                          เปิดลิงก์ไปยังคอนโซล{" "}
-                          <a 
-                            href="https://console.firebase.google.com/project/bangkoku-fb960/authentication/providers" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-violet-700 hover:text-violet-900 font-bold underline inline-flex items-center gap-0.5"
-                          >
-                            Firebase Console (Authentication)
-                          </a>
-                        </li>
-                        <li>หากเข้ามาครั้งแรก ให้คลิกปุ่ม <strong>Get Started</strong></li>
-                        <li>ในแท็บ <strong>Sign-in method</strong> คลิกปุ่ม <strong>Add new provider</strong> แล้วเลือก <strong>Google</strong></li>
-                        <li>สลับเปิดสวิตช์ใช้งาน <strong>Enable (เปิดใช้งาน)</strong> พร้อมเลือกตั้งช่อง <em>Project support email</em> เป็นเมลของคุณ แล้วกดปุ่ม <strong>Save (บันทึก)</strong></li>
-                      </ol>
-                    </div>
-
-                    {/* Step 2: Add Authorized Domains */}
-                    <div className="space-y-1">
-                      <p className="font-bold text-amber-950 mt-2">ขั้นตอนที่ 2: เพิ่ม "โดเมนที่ได้รับอนุญาต" (Authorized Domains)</p>
-                      <p className="text-xs text-amber-800">เพื่ออนุญาตให้โดเมนทดสอบของบราวเซอร์นี้ทำรายการล็อกอินผ่านป๊อปอัปได้:</p>
-                      <ol className="list-decimal list-inside space-y-1 pl-2 text-xs text-amber-900">
-                        <li>
-                          ไปยังแท็บ <strong>Settings</strong> ของหน้า Authentication (หรือคลิกลิงก์{" "}
-                          <a 
-                            href="https://console.firebase.google.com/project/bangkoku-fb960/authentication/settings" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-violet-700 hover:text-violet-900 font-bold underline inline-flex items-center gap-0.5"
-                          >
-                            Firebase Auth Settings
-                          </a>)
-                        </li>
-                        <li>ด้านซ้ายหรือส่วนกลางของหน้าจอ เลือกหัวข้อ <strong>Authorized domains</strong> (โดเมนที่ได้รับอนุญาต)</li>
-                        <li>คลิกปุ่ม <strong>Add domain</strong> (เพิ่มโดเมน) แล้วคัดลอกโดเมนของแอปพลิเคชันต่อไปนี้ใส่เข้าไปทีละตัว:</li>
-                      </ol>
-                      
-                      <div className="bg-amber-100/50 p-3 rounded-lg border border-amber-200 mt-2 space-y-2 font-mono text-xs">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-amber-700 font-sans uppercase font-bold">โดเมนที่ 1 (แอปพลิเคชันพัฒนา):</span>
-                          <code className="bg-white px-2 py-1 rounded border border-amber-300 font-bold select-all overflow-x-auto block">
-                            ais-dev-lecxwegfgxnuchyoxdos7x-958157060236.asia-southeast1.run.app
-                          </code>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-amber-700 font-sans uppercase font-bold">โดเมนที่ 2 (แอปพลิเคชันสำหรับใช้งานร่วมกัน):</span>
-                          <code className="bg-white px-2 py-1 rounded border border-amber-300 font-bold select-all overflow-x-auto block">
-                            ais-pre-lecxwegfgxnuchyoxdos7x-958157060236.asia-southeast1.run.app
-                          </code>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-amber-900 font-semibold bg-amber-100 p-2 rounded-lg">
-                      เมื่อเพิ่มครบถ้วนแล้ว ให้ปิดปุ่มช่วยเหลือนี้หรือรีเฟรชหน้าเว็บ แล้วกดปุ่มล็อกอินใหม่อีกครั้งเพื่อเข้าใช้งานตามปกติครับ!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {dbError && (
-            <div className="w-full max-w-2xl bg-amber-50 border-2 border-amber-200 text-amber-900 rounded-2xl p-6 text-left mb-6 shadow-md">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-base text-amber-950 flex items-center gap-2">
-                    ⚠️ ยังไม่ได้เปิดใช้งาน Cloud Firestore (บริการฐานข้อมูล) ในคอนโซลของท่าน
-                  </h3>
-                  
-                  <div className="mt-2 text-sm text-amber-800 space-y-4">
-                    <p>
-                      เนื่องจากคุณย้ายมาโครงการใหม่ <strong className="underline font-bold text-amber-950">BangkokU (bangkoku-fb960)</strong> ระบบจึงพยายามเชื่อมต่อฐานข้อมูลใหม่นี้ แต่พบข้อผิดพลาดเนื่องจากอาจยังไม่ได้ทำการสร้าง Cloud Firestore ในหน้าคอนโซลครับ
-                    </p>
-                    
-                    <p className="font-semibold text-amber-950 border-b border-amber-200 pb-1">🛠️ ขั้นตอนเปิดใช้งาน Firestore Database:</p>
-                    <ol className="list-decimal list-inside space-y-2 pl-1 text-xs text-amber-900">
-                      <li>
-                        เปิดแท็บใหม่ไปยังหน้า Firestore:{" "}
-                        <a 
-                          href="https://console.firebase.google.com/project/bangkoku-fb960/firestore" 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-violet-700 hover:text-violet-900 font-bold underline inline-flex items-center gap-0.5"
-                        >
-                          Firebase Console (Firestore Database)
-                        </a>
-                      </li>
-                      <li>คลิกที่ปุ่มสีฟ้าเด่นชัดชื่อ <strong>Create database (สร้างฐานข้อมูล)</strong></li>
-                      <li>หน้าจอเลือกสถานที่ตั้ง (Location): เลือกโซนใกล้เคียง เช่น <strong>asia-southeast1</strong> (สิงคโปร์) หรือปล่อยเป็นค่าที่ระบบเลือกให้ แล้วกดปุ่ม <strong>Next</strong></li>
-                      <li>หน้าจอเลือกสไตล์กฎความปลอดภัย: แนะนำให้กดเลือกโหมดใดก็ได้ เช่น <strong>Start in production mode</strong> หรือ <strong>Start in test mode</strong> แล้วกดปุ่ม <strong>Create (สร้าง)</strong> คอนเฟิร์ม</li>
-                      <li>รอจัดเตรียมเซิร์ฟเวอร์เสร็จเปิดตาราง ดำเนินการเสร็จแล้วกดปุ่ม "ทดสอบเชื่อมต่อใหม่อีกครั้ง" ด้านล่างนี้ได้เลยครับ!</li>
-                    </ol>
-
-                    <div className="pt-3 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs font-mono text-amber-700 max-w-sm overflow-x-auto text-ellipsis">
-                        <span className="font-bold">รายละเอียด:</span> {dbError}
-                      </div>
-
-                      <div className="w-full mt-3 p-3 bg-amber-100/70 border border-amber-200 rounded-lg text-xs font-mono text-amber-900 space-y-1">
-                        <div className="font-bold text-amber-950 uppercase tracking-wide text-[10px] mb-1">ข้อมูลประกอบการวินิจฉัย (Diagnostics):</div>
-                        <div>• User Email: <span className="text-violet-700 font-bold">{user?.email || "ว่างเปล่า / ยังไม่ได้ล็อกอิน"}</span></div>
-                        <div>• Is Instructor (App State): <span className="text-violet-700 font-bold">{isInstructor ? "ใช่ (True)" : "ไม่ใช่ (False)"}</span></div>
-                        <div>• Auth UID: <span className="text-violet-700">{user?.uid || "ไม่มี"}</span></div>
-                        <div>• Project ID: <span className="text-violet-700">bangkoku-fb960</span></div>
-                      </div>
-                      
-                      <button
-                        onClick={handleRetryDb}
-                        disabled={retryingDb}
-                        className="px-5 py-2 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
-                      >
-                        {retryingDb ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            กำลังทดสอบเชื่อมต่อ...
-                          </>
-                        ) : (
-                          <>
-                            📡 ทดสอบเชื่อมต่อใหม่อีกครั้ง
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           <button
             onClick={handleGoogleLogin}
             className="px-8 py-3.5 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white font-bold text-base rounded-xl flex items-center gap-2.5 shadow-xl shadow-violet-900/15 cursor-pointer transform hover:-translate-y-0.5 transition duration-300"
@@ -670,55 +494,6 @@ export default function App() {
       ) : (
         /* Authenticated Session Dashboard */
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-
-          {dbError && (
-            <div className="w-full bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-5 text-left mb-6 shadow-md">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-base text-amber-900 flex items-center gap-2">
-                    ⚠️ ยังไม่ได้เปิดใช้งาน Cloud Firestore หรือการเข้าถึงอินเทอร์เน็ตล้มเหลว
-                  </h3>
-                  
-                  <div className="mt-2 text-sm text-amber-800 space-y-3">
-                    <p>
-                      ระบบไม่พบสิทธิ์เชื่อมโยงเข้า Cloud Firestore สำหรับโครงการ <strong className="underline">BangkokU (bangkoku-fb960)</strong> ครับ 
-                      กรุณากดตรวจสอบให้มั่นใจว่าได้สร้างฐานข้อมูล Cloud Firestore ไว้เรียบร้อยแล้วใน Firebase Console:
-                    </p>
-                    
-                    <ul className="list-disc list-inside space-y-1 text-xs pl-1">
-                      <li>ไปยังเว็บคอนโซลของคุณ: <a href="https://console.firebase.google.com/project/bangkoku-fb960/firestore" target="_blank" rel="noopener noreferrer" className="text-violet-700 hover:text-violet-900 font-bold underline">Firebase Firestore Database</a></li>
-                      <li>คลิกปุ่ม <strong>Create database</strong> (หากยังไม่ได้แสดงหน้าตารางข้อมูล)</li>
-                      <li>เมื่อจัดเตรียมตารางเสร็จแล้ว ให้ลองกดคลิกทดสอบและโหลดใบงานของคุณใหม่อีกครั้ง</li>
-                    </ul>
-
-                    <div className="pt-3 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs font-mono text-amber-700">
-                        <span className="font-bold">Error:</span> {dbError}
-                      </div>
-                      
-                      <button
-                        onClick={handleRetryDb}
-                        disabled={retryingDb}
-                        className="px-5 py-2 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
-                      >
-                        {retryingDb ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            กำลังทดสอบ...
-                          </>
-                        ) : (
-                          <>
-                            📡 ทดสอบเชื่อมต่อฐานข้อมูลอีกครั้ง
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
           
           {/* Assignment Create Form Overlay */}
           {showAssignmentForm ? (

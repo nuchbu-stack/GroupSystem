@@ -1,10 +1,10 @@
 {
-  "projectId": "bangkoku-fb960",
-  "appId": "1:338042281535:web:b0afcea90dc2c99dcae28a",
-  "apiKey": "AIzaSyBR3a1Fu_HEMfV0WZ4_g4ey26PykBVi2ks",
-  "authDomain": "bangkoku-fb960.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
-  "storageBucket": "bangkoku-fb960.firebasestorage.app",
-  "messagingSenderId": "338042281535",
-  "measurementId": "G-QSMTX5ZR48"
+  "projectId": "first1000days-328802",
+  "appId": "1:827579094720:web:c2871797ed014d2a4b3f25",
+  "apiKey": "AIzaSyALSAZLPPHws1lq8FfCUbS1A0obbKhm-vw",
+  "authDomain": "first1000days-328802.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-59519bb4-cce2-488f-9d91-cdaf6de5f1a1",
+  "storageBucket": "first1000days-328802.firebasestorage.app",
+  "messagingSenderId": "827579094720",
+  "measurementId": ""
 }

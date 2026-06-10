@@ -13,16 +13,11 @@ service cloud.firestore {
     }
     
     function getUserEmail() {
-      return (request.auth != null && request.auth.token.email != null) ? request.auth.token.email.lower() : '';
+      return (request.auth != null && 'email' in request.auth.token) ? request.auth.token.email.lower() : '';
     }
     
     function isInstructor() {
-      return isSignedIn() && (
-        getUserEmail() == 'nuch.bu@gmail.com' ||
-        getUserEmail() == 'nuchanart.s@bu.ac.th' ||
-        getUserEmail().matches('.*@bu\\.ac\\.th$') ||
-        getUserEmail().matches('.*\\.bu\\.ac\\.th$')
-      );
+      return isSignedIn() && (getUserEmail().matches('.*@bu.ac.th') || getUserEmail() == 'nuch.bu@gmail.com');
     }
     
     function isValidId(id) {
@@ -36,16 +31,16 @@ service cloud.firestore {
       );
       
       allow create: if isSignedIn() && isInstructor() && (
-        request.resource.data.instructorEmail == getUserEmail()
+        request.resource.data.instructorEmail.lower() == getUserEmail()
       );
       
       allow update: if isSignedIn() && isInstructor() && (
-        resource.data.instructorEmail == getUserEmail() &&
-        request.resource.data.instructorEmail == resource.data.instructorEmail
+        resource.data.instructorEmail.lower() == getUserEmail() &&
+        request.resource.data.instructorEmail.lower() == resource.data.instructorEmail.lower()
       );
       
       allow delete: if isSignedIn() && isInstructor() && (
-        resource.data.instructorEmail == getUserEmail()
+        resource.data.instructorEmail.lower() == getUserEmail()
       );
       
       match /groups/{groupId} {
@@ -54,7 +49,7 @@ service cloud.firestore {
         }
         
         function isAssignmentInstructor() {
-          return getAssignment().data.instructorEmail == getUserEmail();
+          return getAssignment().data.instructorEmail.lower() == getUserEmail();
         }
         
         function isAssignmentStudent() {

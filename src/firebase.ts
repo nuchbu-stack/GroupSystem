@@ -5,10 +5,7 @@ import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db =
-  firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== "(default)"
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: Must specify database id */
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -41,22 +38,6 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export const dbStatus = {
-  error: null as string | null,
-  listeners: [] as ((error: string | null) => void)[],
-  setError(err: string | null) {
-    this.error = err;
-    this.listeners.forEach((cb) => cb(err));
-  },
-  onChange(cb: (error: string | null) => void) {
-    this.listeners.push(cb);
-    cb(this.error);
-    return () => {
-      this.listeners = this.listeners.filter((item) => item !== cb);
-    };
-  }
-};
-
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
@@ -71,8 +52,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path,
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
-  
-  dbStatus.setError(errorMessage);
 
   // Clean up error message for user
   let friendlyMsg = "เกิดข้อผิดพลาดในการบันทึกหรือดึงข้อมูล: " + errorMessage;
@@ -80,48 +59,22 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     friendlyMsg = "ขออภัย คุณไม่มีสิทธิ์ในการดำเนินการนี้ (Permission Denied)\n\nโปรดตรวจสอบว่าคุณเข้าสู่ระบบด้วยอีเมลบัญชีผู้สอนที่ถูกต้อง (@bu.ac.th หรือได้รับสิทธิ์แล้ว)";
   } else if (errorMessage.toLowerCase().includes("quota-exceeded")) {
     friendlyMsg = "โควตาการใช้งานฐานข้อมูลเต็มแล้ว กรุณาลองใหม่อีกครั้งในวันถัดไป (Quota Exceeded)";
-  } else if (errorMessage.toLowerCase().includes("offline") || errorMessage.toLowerCase().includes("failed-precondition") || errorMessage.toLowerCase().includes("unimplemented")) {
-    friendlyMsg = "ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบว่าเปิดใช้งาน Firestore Database ในโครงการแล้วหรือยัง";
+  } else if (errorMessage.toLowerCase().includes("offline")) {
+    friendlyMsg = "ไม่สามารถเชื่อมต่อเครือข่ายได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
   }
 
-  // Only alert for non-offline/non-configuration issues to avoid constant popups
-  if (!errorMessage.toLowerCase().includes("offline") && !errorMessage.toLowerCase().includes("failed") && !errorMessage.toLowerCase().includes("unimplemented")) {
-    try {
-      alert(friendlyMsg);
-    } catch (e) {
-      // Ignore alert failures inside sandbox
-    }
-  }
+  alert(friendlyMsg);
   throw new Error(errInfo.error);
 }
 
-// Test connectivity on boot and offer retry
-export async function testConnection(): Promise<boolean> {
+// Test connectivity on boot
+async function testConnection() {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
-    dbStatus.setError(null);
-    return true;
   } catch (error) {
-    const errStr = error instanceof Error ? error.message : String(error);
-    
-    // If it's a permission-denied error, it means we SUCCESSFULLY connected to the database 
-    // and it rejected the read because of our security rules (which default to block unauthorized reads).
-    // This confirms the database is online, created, and reachable!
-    if (
-      errStr.toLowerCase().includes("permission-denied") || 
-      errStr.toLowerCase().includes("permission_denied") ||
-      errStr.toLowerCase().includes("permissions") ||
-      errStr.toLowerCase().includes("insufficient permissions")
-    ) {
-      dbStatus.setError(null);
-      return true;
-    }
-    
-    dbStatus.setError(errStr);
-    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("failed") || error.message.includes("unimplemented"))) {
+    if (error instanceof Error && error.message.includes("offline")) {
       console.error("Please check your Firebase configuration or network status.");
     }
-    return false;
   }
 }
 testConnection();
